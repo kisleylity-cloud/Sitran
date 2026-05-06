@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Vehicle {
+  id           String        @id @default(uuid())
+  plate        String        @unique
+  prefix       String?
+  model        String
+  brand        String
+  year         Int
+  sector       String?
+  unit         String?
+  status       String        @default("ATIVO")
+  mileage      Int           @default(0)
+  lastReviewAt DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  checklists   Checklist[]
+  maintenances Maintenance[]
+}
+
+model Driver {
+  id         String      @id @default(uuid())
+  name       String
+  cpf        String      @unique
+  cnh        String      @unique
+  category   String
+  phone      String?
+  email      String?
+  status     String      @default("ATIVO")
+  expiresAt  DateTime
+  notes      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  checklists Checklist[]
+}
+
+model Checklist {
+  id          String          @id @default(uuid())
+  number      Int             @unique @default(autoincrement())
+  vehicleId   String
+  driverId    String
+  type        String
+  status      String          @default("PENDENTE")
+  odometer    Int?
+  location    String?
+  notes       String?
+  driverPhoto String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  vehicle     Vehicle         @relation(fields: [vehicleId], references: [id])
+  driver      Driver          @relation(fields: [driverId], references: [id])
+  items       ChecklistItem[]
+}
+
+model ChecklistItem {
+  id          String      @id @default(uuid())
+  checklistId String
+  label       String
+  status      String      @default("PENDENTE")
+  notes       String?
+  photoUrl    String?
+  checklist   Checklist   @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+}
+
+model Maintenance {
+  id                String   @id @default(uuid())
+  vehicleId         String
+  title             String
+  description       String?
+  performedAt       DateTime?
+  dueDate           DateTime?
+  currentKm         Int?
+  nextMaintenanceKm Int?
+  cost              Float?
+  status            String   @default("ABERTA")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  vehicle           Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("ADMIN")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

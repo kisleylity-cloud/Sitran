@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Sitran Checklist",
+    "slug": "sitran-checklist",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#071a2f"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "package": "com.sitran.checklist",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#071a2f"
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-image-picker",
+      "expo-font"
+    ],
+    "scheme": "sitranapp",
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
