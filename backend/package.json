@@ -12,10 +12,12 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
+    "cloudinary": "^1.41.3",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
-    "morgan": "^1.10.1"
+    "morgan": "^1.10.1",
+    "multer-storage-cloudinary": "^4.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10",
