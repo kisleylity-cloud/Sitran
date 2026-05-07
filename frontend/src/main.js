@@ -1,4 +1,5 @@
 import './styles.css'
+import Chart from 'chart.js/auto'
 import { apiDelete, apiGet, apiPost, apiPut, buildAssetUrl } from './services/api.js'
 
 const app = document.querySelector('#app')
@@ -31,6 +32,7 @@ const vehicleStatusOptions = ['ATIVO', 'MANUTENCAO', 'INATIVO']
 const driverStatusOptions = ['ATIVO', 'INATIVO']
 const maintenanceStatusOptions = ['ABERTA', 'AGENDADA', 'CONCLUIDA']
 const userRoleOptions = ['ADMIN', 'OPERADOR']
+const dashboardCharts = {}
 
 function formatDate(date) {
   if (!date) return '-'
@@ -177,39 +179,70 @@ async function loadAllData() {
 
 function renderSidebar() {
   const items = [
-    ['dashboard', 'Dashboard'],
-    ['vehicles', 'Veículos'],
-    ['drivers', 'Condutores'],
-    ['checklists', 'Checklists'],
-    ['maintenances', 'Manutenções'],
-    ['users', 'Usuários'],
-    ['about', 'Sobre'],
+    ['dashboard', '📊', 'Dashboard'],
+    ['vehicles', '🚛', 'Veículos'],
+    ['drivers', '🧑‍✈️', 'Condutores'],
+    ['checklists', '📝', 'Checklists'],
+    ['maintenances', '🛠️', 'Manutenções'],
+    ['users', '👥', 'Usuários'],
+    ['about', '🏢', 'Sobre'],
   ]
 
   return `
     <aside class="sidebar">
-      <div class="brand-card">
-        <div class="brand-badge">Sitran Sinalização Industrial Ltda ES</div>
-        <h1>SITRAN <span>ES</span></h1>
-        <p>Painel operacional para checklist, frota, condutores e manutenção.</p>
+      <div class="sidebar-top">
+        <div class="brand-card premium-brand">
+          <div class="brand-badge">Sitran Sinalização Industrial Ltda ES</div>
+
+          <div class="brand-logo-wrap">
+            <div class="brand-logo-glow"></div>
+
+            <h1>
+              SITRAN
+              <span>ES</span>
+            </h1>
+          </div>
+
+          <p>
+            Painel operacional inteligente para controle de frota,
+            checklists, manutenção e condutores.
+          </p>
+        </div>
       </div>
 
-      <nav class="menu">
-        ${items.map(([key, label]) => `
-          <button class="menu-item ${state.activePage === key ? 'active' : ''}" data-page="${key}">
-            <span>${label}</span>
+      <nav class="menu premium-menu">
+        ${items.map(([key, icon, label]) => `
+          <button
+            class="menu-item premium-item ${state.activePage === key ? 'active' : ''}"
+            data-page="${key}"
+          >
+            <div class="menu-icon">${icon}</div>
+
+            <div class="menu-text">
+              <strong>${label}</strong>
+              <span>Módulo operacional</span>
+            </div>
+
+            <div class="menu-indicator"></div>
           </button>
         `).join('')}
       </nav>
 
-      <div class="sidebar-foot clean">
+      <div class="sidebar-foot clean premium-foot">
+        <div class="system-status">
+          <div class="status-dot"></div>
+          <span>Sistema Online</span>
+        </div>
+
         <strong>SITRAN Manager</strong>
-        <p>Desenvolvido por Kisley Lity</p>
+
+        <p>
+          Desenvolvido por Kisley Lity
+        </p>
       </div>
     </aside>
   `
 }
-
 function renderHeader(title, subtitle, actions = '') {
   return `
     <div class="page-header">
@@ -232,10 +265,25 @@ function renderDashboard() {
   const maintenanceAlerts = state.data.dashboard?.maintenanceAlerts || []
   const cnhAlerts = state.data.dashboard?.cnhAlerts || []
 
+  const totalChecklists = Number(summary.totalChecklists || 0)
+  const okChecklists = Math.max(
+    totalChecklists - Number(summary.pendingChecklists || 0) - Number(summary.problemChecklists || 0),
+    0
+  )
+
+  const statusTotal = Math.max(
+    okChecklists + Number(summary.pendingChecklists || 0) + Number(summary.problemChecklists || 0),
+    1
+  )
+
+  const okPercent = Math.round((okChecklists / statusTotal) * 100)
+  const pendingPercent = Math.round((Number(summary.pendingChecklists || 0) / statusTotal) * 100)
+  const problemPercent = Math.round((Number(summary.problemChecklists || 0) / statusTotal) * 100)
+
   return `
     ${renderHeader('Centro de Operações SITRAN', 'Visão rápida da frota, checklists, condutores e manutenções.')}
 
-    <section class="hero-card compact-hero">
+    <section class="hero-card compact-hero premium-hero">
       <div>
         <div class="tag">Operação em campo</div>
         <h3>Resumo geral da operação</h3>
@@ -255,6 +303,72 @@ function renderDashboard() {
       <div class="info-card olive"><span>Checklists pendentes</span><strong>${summary.pendingChecklists || 0}</strong></div>
       <div class="info-card wine"><span>Com problema</span><strong>${summary.problemChecklists || 0}</strong></div>
       <div class="info-card cyan"><span>Com foto</span><strong>${summary.checklistsWithPhotos || 0}</strong></div>
+    </section>
+
+    <section class="panel-grid two analytics-row">
+      <div class="panel-card analytics-card">
+        <div class="panel-card-header">
+          <h3>Status dos checklists</h3>
+          <p>Resumo visual da operação com base nos registros atuais.</p>
+        </div>
+
+        <div class="operation-score">
+          <div>
+            <span>Saúde operacional</span>
+            <strong>${problemPercent > 30 ? 'Atenção' : pendingPercent > 30 ? 'Monitorar' : 'Estável'}</strong>
+          </div>
+          <div class="score-ring">
+            <span>${100 - problemPercent}%</span>
+          </div>
+        </div>
+
+        <div class="bar-list">
+          <div class="bar-item">
+            <div><strong>OK</strong><span>${okChecklists} registro(s)</span></div>
+            <div class="bar-track"><div class="bar-fill ok" style="width:${okPercent}%"></div></div>
+          </div>
+
+          <div class="bar-item">
+            <div><strong>Pendentes</strong><span>${summary.pendingChecklists || 0} registro(s)</span></div>
+            <div class="bar-track"><div class="bar-fill pending" style="width:${pendingPercent}%"></div></div>
+          </div>
+
+          <div class="bar-item">
+            <div><strong>Problemas</strong><span>${summary.problemChecklists || 0} registro(s)</span></div>
+            <div class="bar-track"><div class="bar-fill problem" style="width:${problemPercent}%"></div></div>
+          </div>
+        </div>
+        <div class="chart-box">
+          <canvas id="checklistStatusChart"></canvas>
+        </div>
+      </div>
+
+      <div class="panel-card analytics-card">
+        <div class="panel-card-header">
+          <h3>Indicadores rápidos</h3>
+          <p>Leitura executiva da situação atual.</p>
+        </div>
+
+        <div class="insight-list">
+          <div class="insight-item">
+            <span>🚛</span>
+            <div><strong>${summary.activeVehicles || 0} veículos ativos</strong><p>Disponíveis para operação.</p></div>
+          </div>
+
+          <div class="insight-item">
+            <span>🛠️</span>
+            <div><strong>${maintenanceAlerts.length} alerta(s) de manutenção</strong><p>Itens que exigem atenção.</p></div>
+          </div>
+
+          <div class="insight-item">
+            <span>📸</span>
+            <div><strong>${summary.checklistsWithPhotos || 0} checklist(s) com foto</strong><p>Evidências registradas em campo.</p></div>
+          </div>
+        </div>
+        <div class="chart-box small">
+          <canvas id="fleetChart"></canvas>
+        </div>
+      </div>
     </section>
 
     <section class="panel-grid two">
@@ -320,7 +434,6 @@ function renderDashboard() {
     </section>
   `
 }
-
 function renderVehicles() {
   return `
     ${renderHeader('Veículos', 'Cadastro completo e histórico da frota operacional.', '<button class="primary-btn" id="newVehicleBtn">+ Novo veículo</button>')}
@@ -624,6 +737,131 @@ function renderContent() {
   }
 }
 
+
+function destroyDashboardCharts() {
+  Object.values(dashboardCharts).forEach((chart) => {
+    if (chart) chart.destroy()
+  })
+
+  dashboardCharts.checklistStatus = null
+  dashboardCharts.fleet = null
+}
+
+function renderDashboardCharts() {
+  destroyDashboardCharts()
+
+  if (state.activePage !== 'dashboard' || state.ui.loading) return
+
+  const summary = state.data.dashboard?.summary || {}
+  const checklistCanvas = document.querySelector('#checklistStatusChart')
+  const fleetCanvas = document.querySelector('#fleetChart')
+
+  const totalChecklists = Number(summary.totalChecklists || 0)
+  const pendingChecklists = Number(summary.pendingChecklists || 0)
+  const problemChecklists = Number(summary.problemChecklists || 0)
+  const okChecklists = Math.max(totalChecklists - pendingChecklists - problemChecklists, 0)
+
+  if (checklistCanvas) {
+    dashboardCharts.checklistStatus = new Chart(checklistCanvas, {
+      type: 'doughnut',
+      data: {
+        labels: ['OK', 'Pendentes', 'Problemas'],
+        datasets: [{
+          data: [okChecklists, pendingChecklists, problemChecklists],
+          backgroundColor: ['#21d19f', '#ffb546', '#ff4d6d'],
+          borderColor: 'rgba(8, 22, 40, 0.92)',
+          borderWidth: 4,
+          hoverOffset: 10,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '68%',
+        animation: {
+          duration: 900,
+          easing: 'easeOutQuart',
+        },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: '#dce8fb',
+              boxWidth: 12,
+              padding: 18,
+              font: {
+                size: 12,
+                weight: '700',
+              },
+            },
+          },
+          tooltip: {
+            backgroundColor: 'rgba(8, 22, 40, 0.96)',
+            borderColor: 'rgba(126,224,255,.22)',
+            borderWidth: 1,
+            titleColor: '#ffffff',
+            bodyColor: '#dce8fb',
+            padding: 12,
+          },
+        },
+      },
+    })
+  }
+
+  if (fleetCanvas) {
+    const activeVehicles = Number(summary.activeVehicles || 0)
+    const maintenanceVehicles = Number(summary.maintenanceVehicles || 0)
+    const inactiveVehicles = Math.max(Number(summary.totalVehicles || 0) - activeVehicles - maintenanceVehicles, 0)
+
+    dashboardCharts.fleet = new Chart(fleetCanvas, {
+      type: 'bar',
+      data: {
+        labels: ['Ativos', 'Manutenção', 'Inativos'],
+        datasets: [{
+          label: 'Veículos',
+          data: [activeVehicles, maintenanceVehicles, inactiveVehicles],
+          backgroundColor: ['#2cb7ea', '#ffb546', '#64748b'],
+          borderRadius: 14,
+          borderSkipped: false,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+          duration: 900,
+          easing: 'easeOutQuart',
+        },
+        scales: {
+          x: {
+            ticks: { color: '#dce8fb' },
+            grid: { display: false },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: {
+              color: '#dce8fb',
+              precision: 0,
+            },
+            grid: { color: 'rgba(255,255,255,.06)' },
+          },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(8, 22, 40, 0.96)',
+            borderColor: 'rgba(126,224,255,.22)',
+            borderWidth: 1,
+            titleColor: '#ffffff',
+            bodyColor: '#dce8fb',
+            padding: 12,
+          },
+        },
+      },
+    })
+  }
+}
+
 function renderApp() {
   app.innerHTML = `
     <div class="layout">
@@ -633,6 +871,10 @@ function renderApp() {
     <div id="modalRoot"></div>
   `
   bindGlobalEvents()
+
+  requestAnimationFrame(() => {
+    renderDashboardCharts()
+  })
 }
 
 function openModal(title, content, wide = false) {
