@@ -4,6 +4,60 @@ import { apiDelete, apiGet, apiPost, apiPut, buildAssetUrl } from './services/ap
 
 const app = document.querySelector('#app')
 
+
+const AUTH_TOKEN_KEY = 'sitran_auth_token'
+const AUTH_USER_KEY = 'sitran_auth_user'
+
+function getAuthToken() {
+  return localStorage.getItem(AUTH_TOKEN_KEY)
+}
+
+function isAuthenticated() {
+  return Boolean(getAuthToken())
+}
+
+function getAuthenticatedUser() {
+  try {
+    return JSON.parse(localStorage.getItem(AUTH_USER_KEY) || 'null')
+  } catch {
+    return null
+  }
+}
+
+function logout() {
+  localStorage.removeItem(AUTH_TOKEN_KEY)
+  localStorage.removeItem(AUTH_USER_KEY)
+  state.activePage = 'dashboard'
+  renderApp()
+}
+
+function renderLoginScreen() {
+  return `
+    <section class="login-screen">
+      <form class="login-card" id="loginForm">
+        <div class="login-orb"></div>
+        <div class="login-brand-badge">Sitran Sinalização Industrial Ltda ES</div>
+        <h1>SITRAN <span>ES</span></h1>
+        <h2>Painel administrativo</h2>
+        <p>Acesso restrito ao Centro de Operações.</p>
+
+        <label>
+          <span>E-mail</span>
+          <input type="email" name="email" placeholder="Digite seu e-mail" required />
+        </label>
+
+        <label>
+          <span>Senha</span>
+          <input type="password" name="password" placeholder="Digite sua senha" required />
+        </label>
+
+        <button class="login-submit" type="submit">Entrar no painel</button>
+        <div class="login-foot">SITRAN Manager • Ambiente protegido</div>
+      </form>
+    </section>
+  `
+}
+
 const state = {
   activePage: 'dashboard',
   data: {
@@ -239,6 +293,8 @@ function renderSidebar() {
         <p>
           Desenvolvido por Kisley Lity
         </p>
+
+        <button class="logout-btn" id="logoutBtn" type="button">Sair do painel</button>
       </div>
     </aside>
   `
@@ -862,7 +918,50 @@ function renderDashboardCharts() {
   }
 }
 
+function bindLoginForm() {
+  document.querySelector('#loginForm')?.addEventListener('submit', async (event) => {
+    event.preventDefault()
+
+    const form = event.currentTarget
+    const payload = formToObject(form)
+    const button = form.querySelector('button[type="submit"]')
+    const originalText = button?.textContent || 'Entrar no painel'
+
+    try {
+      if (button) {
+        button.disabled = true
+        button.textContent = 'Entrando...'
+      }
+
+      const result = await apiPost('/users/login', {
+        email: payload.email,
+        password: payload.password,
+      })
+
+      localStorage.setItem(AUTH_TOKEN_KEY, result.token)
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(result.user || {}))
+
+      await loadAllData()
+    } catch (error) {
+      alert(error.message || 'E-mail ou senha inválidos.')
+    } finally {
+      if (button) {
+        button.disabled = false
+        button.textContent = originalText
+      }
+    }
+  })
+}
+
 function renderApp() {
+  destroyDashboardCharts()
+
+  if (!isAuthenticated()) {
+    app.innerHTML = renderLoginScreen()
+    bindLoginForm()
+    return
+  }
+
   app.innerHTML = `
     <div class="layout">
       ${renderSidebar()}
@@ -871,6 +970,7 @@ function renderApp() {
     <div id="modalRoot"></div>
   `
   bindGlobalEvents()
+  document.querySelector('#logoutBtn')?.addEventListener('click', logout)
 
   requestAnimationFrame(() => {
     renderDashboardCharts()
@@ -1334,5 +1434,8 @@ function bindUserForm() {
   })
 }
 
-renderApp()
-loadAllData()
+if (isAuthenticated()) {
+  loadAllData()
+} else {
+  renderApp()
+}
